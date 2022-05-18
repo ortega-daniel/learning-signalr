@@ -28,5 +28,6 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 
 app.MapHub<LearningHub>("/learninghub");
+app.UseBlazorFrameworkFiles();
 
 app.Run();

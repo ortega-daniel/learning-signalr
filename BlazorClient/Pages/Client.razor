@@ -1,0 +1,58 @@
+﻿@page "/client"
+@using Microsoft.AspNetCore.SignalR.Client
+@inject NavigationManager navigationManager
+@implements IAsyncDisposable
+
+<h1>Blazor WebAssembly Client</h1>
+<div class="row" style="padding-top: 50px;">
+    <div class="col-md-4">
+        <div class="control-group">
+            <div>
+                <label for="broadcastMsg">Message</label>
+                <input @bind="_message" type="text" id="broadcastMsg" name="broadcastMsg" />
+            </div>
+            <button class="btn btn-primary" @onclick="BroadcastMessage" disabled="@(!isConnected)">Broadcast</button>
+        </div>
+    </div>
+    <div class="col-md-7">
+        <p>SignalR Messages:</p>
+        <pre>
+            @foreach (var message in _messages)
+           {
+               @message<br />
+           }
+        </pre>
+    </div>
+</div>
+
+@code {
+    private HubConnection _hubConnection;
+    private List<String> _messages = new();
+    private string? _message;
+
+    protected override async Task OnInitializedAsync()
+    {
+        _hubConnection = new HubConnectionBuilder()
+            .WithUrl(navigationManager.ToAbsoluteUri("learningHub"))
+            .Build();
+
+        _hubConnection.On<string>("ReceiveMessage", message =>
+        {
+            _messages.Add(message);
+            StateHasChanged();
+        });
+
+        await _hubConnection.StartAsync();
+    }
+
+    private async Task BroadcastMessage() => 
+        await _hubConnection.SendAsync("BroadcastMessage", _message);
+
+    public bool isConnected =>
+        _hubConnection?.State == HubConnectionState.Connected;
+
+    public async ValueTask DisposeAsync()
+    {
+        await _hubConnection.DisposeAsync();
+    }
+}
