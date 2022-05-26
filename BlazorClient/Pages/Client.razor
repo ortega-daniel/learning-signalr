@@ -9,7 +9,7 @@
         <div class="control-group">
             <div>
                 <label for="broadcastMsg">Message</label>
-                <input @bind="_message" type="text" id="broadcastMsg" name="broadcastMsg" />
+                <input @bind="message" type="text" id="broadcastMsg" name="broadcastMsg" />
             </div>
             <button class="btn btn-primary" @onclick="BroadcastMessage" disabled="@(!isConnected)">Broadcast</button>
         </div>
@@ -17,7 +17,7 @@
     <div class="col-md-7">
         <p>SignalR Messages:</p>
         <pre>
-            @foreach (var message in _messages)
+            @foreach (var message in messages)
            {
                @message<br />
            }
@@ -26,33 +26,41 @@
 </div>
 
 @code {
-    private HubConnection _hubConnection;
-    private List<String> _messages = new();
-    private string? _message;
+    private HubConnection? hubConnection;
+    private List<String> messages = new();
+    private string? message;
 
     protected override async Task OnInitializedAsync()
     {
-        _hubConnection = new HubConnectionBuilder()
+        hubConnection = new HubConnectionBuilder()
             .WithUrl(navigationManager.ToAbsoluteUri("learningHub"))
+            .WithAutomaticReconnect()
             .Build();
 
-        _hubConnection.On<string>("ReceiveMessage", message =>
+        hubConnection.On<string>("ReceiveMessage", message =>
         {
-            _messages.Add(message);
-            StateHasChanged();
+            messages.Add(message);
+            InvokeAsync(StateHasChanged);
         });
 
-        await _hubConnection.StartAsync();
+        await hubConnection.StartAsync();
     }
 
-    private async Task BroadcastMessage() => 
-        await _hubConnection.SendAsync("BroadcastMessage", _message);
+    private async Task BroadcastMessage()
+    {
+        if (hubConnection is not null)
+        {
+            await hubConnection.SendAsync("BroadcastMessage", message);
+        }
+    }
 
-    public bool isConnected =>
-        _hubConnection?.State == HubConnectionState.Connected;
+    public bool isConnected => hubConnection?.State == HubConnectionState.Connected;
 
     public async ValueTask DisposeAsync()
     {
-        await _hubConnection.DisposeAsync();
+        if (hubConnection is not null)
+        {
+            await hubConnection.DisposeAsync();
+        }
     }
 }
